@@ -6,14 +6,13 @@
 #include <vector>
 
 #include "lattice.h"
-#include "walk_base.h"
 
 namespace pivot {
 
 template <int Dim> class walk_node;
 
 /** @brief Represents an entire saw-tree (as per Clisby's 2010 paper). */
-template <int Dim> class walk_tree : public walk_base<Dim> {
+template <int Dim> class walk_tree {
 
 public:
   /* CONSTRUCTORS, DESTRUCTOR */
@@ -66,7 +65,7 @@ public:
 
   walk_node<Dim> *root() const;
 
-  point<Dim> endpoint() const override;
+  point<Dim> endpoint() const;
 
   bool is_leaf() const;
 
@@ -121,7 +120,7 @@ public:
    *
    * @return Whether the pivot was successful.
    */
-  bool rand_pivot(bool fast = true) override;
+  bool rand_pivot(bool fast = true);
 
   /* OTHER FUNCTIONS */
 
@@ -140,10 +139,10 @@ public:
    *
    * @return Whether the walk is self-avoiding.
    */
-  bool self_avoiding() const override;
+  bool self_avoiding() const;
 
   /** @brief Export the walk to a CSV file. */
-  void export_csv(const std::string &path) const override;
+  void export_csv(const std::string &path) const;
 
   /** @brief Export tree to GraphViz format. */
   void todot(const std::string &path) const;

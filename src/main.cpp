@@ -6,14 +6,13 @@
 
 #define CASE_MACRO(z, n, data)                                                                                         \
   case n:                                                                                                              \
-    return main_loop<n>(num_steps, iters, naive, fast, seed, require_success, verify, in_path, out_dir);               \
+    return main_loop<n>(num_steps, iters, fast, seed, require_success, verify, in_path, out_dir);                      \
     break;
 
 int main(int argc, char **argv) {
   int dim;
   int num_steps;
   int iters;
-  bool naive{false};
   std::optional<bool> fast_slow{std::nullopt};
   int num_workers{0};
   bool require_success{false};
@@ -28,7 +27,6 @@ int main(int argc, char **argv) {
   app.add_option("-d,--dim", dim, "dimension")->required();
   app.add_option("-s,--steps", num_steps, "number of steps")->required();
   app.add_option("-i,--iters", iters, "number of iterations")->required();
-  app.add_flag("--naive", naive, "use naive implementation (slower)");
   app.add_flag("--fast,!--slow", fast_slow, "use fast implementation");
   app.add_option("-w,--workers", num_workers, "number of workers");
   app.add_flag("--success", require_success, "require success");
@@ -42,7 +40,7 @@ int main(int argc, char **argv) {
   if (fast_slow.has_value()) {
     fast = fast_slow.value();
   } else {
-    fast = !naive;
+    fast = true;
   }
 
   switch (dim) {

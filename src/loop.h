@@ -3,25 +3,16 @@
 #include <string>
 
 #include "utils.h"
-#include "walk.h"
 #include "walk_tree.h"
 
 template <int Dim>
-int main_loop(int num_steps, int iters, bool naive, bool fast, int seed, bool require_success, bool verify,
+int main_loop(int num_steps, int iters, bool fast, int seed, bool require_success, bool verify,
               const std::string &in_path, const std::string &out_dir) {
-  std::unique_ptr<pivot::walk_base<Dim>> w;
-  if (naive) {
-    if (in_path.empty()) {
-      w = std::make_unique<pivot::walk<Dim>>(num_steps, seed);
-    } else {
-      w = std::make_unique<pivot::walk<Dim>>(in_path, seed);
-    }
+  std::unique_ptr<pivot::walk_tree<Dim>> w;
+  if (in_path.empty()) {
+    w = std::make_unique<pivot::walk_tree<Dim>>(num_steps, seed);
   } else {
-    if (in_path.empty()) {
-      w = std::make_unique<pivot::walk_tree<Dim>>(num_steps, seed);
-    } else {
-      w = std::make_unique<pivot::walk_tree<Dim>>(in_path, seed);
-    }
+    w = std::make_unique<pivot::walk_tree<Dim>>(in_path, seed);
   }
 
   std::vector<pivot::point<Dim>> endpoints;
