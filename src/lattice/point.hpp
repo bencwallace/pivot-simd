@@ -4,82 +4,44 @@
 
 namespace pivot {
 
-template <int Dim> point<Dim>::point(const std::array<int, Dim> &coords) : coords_(coords) {}
+template <> point<2>::point() : coords_(_mm_setzero_si128()) {}
 
-template <int Dim> point<Dim> point<Dim>::unit(int i) {
-  point<Dim> result;
-  result.coords_[i] = 1;
-  return result;
+template <> point<2>::point(__m128i coords) : coords_(coords) {}
+
+template <> point<2>::point(const std::array<int, 2> &coords) : coords_(_mm_setr_epi32(coords[0], coords[1], 0, 0)) {}
+
+template <> point<2> point<2>::unit(int i) {
+  point p;
+  p.coords_ = insert_epi32(p.coords_, 1, i);
+  return p;
 }
 
-template <int Dim> int point<Dim>::operator[](int i) const { return coords_[i]; }
+template <> int point<2>::operator[](int i) const { return extract_epi32(coords_, i); }
 
-template <int Dim> bool point<Dim>::operator==(const point &p) const {
-  // Faster than using std::equal, at least for small arrays
-  // https://stackoverflow.com/questions/39262496/why-is-stdequal-much-slower-than-a-hand-rolled-loop-for-two-small-stdarray
-  for (int i = 0; i < Dim; ++i) {
-    if (coords_[i] != p.coords_[i]) {
-      return false;
-    }
-  }
-  return true;
+template <> bool point<2>::operator==(const point &p) const {
+  return _mm_movemask_epi8(_mm_cmpeq_epi32(coords_, p.coords_)) == 0xFFFF;
 }
 
-template <int Dim> bool point<Dim>::operator!=(const point &p) const { return !(*this == p); }
+template <> bool point<2>::operator!=(const point &p) const { return !(*this == p); }
 
-template <int Dim> point<Dim> point<Dim>::operator+(const point<Dim> &p) const {
-  std::array<int, Dim> sum;
-  for (int i = 0; i < Dim; ++i) {
-    sum[i] = coords_[i] + p.coords_[i];
-  }
-  return point(sum);
-}
+template <> point<2> point<2>::operator+(const point<2> &p) const { return _mm_add_epi32(coords_, p.coords_); }
 
-template <int Dim> point<Dim> point<Dim>::operator-(const point &p) const {
-  std::array<int, Dim> diff;
-  for (int i = 0; i < Dim; ++i) {
-    diff[i] = coords_[i] - p.coords_[i];
-  }
-  return point(diff);
-}
+template <> point<2> point<2>::operator-(const point &p) const { return _mm_sub_epi32(coords_, p.coords_); }
 
-template <int Dim> point<Dim> &point<Dim>::operator*=(int k) {
-  for (int i = 0; i < Dim; ++i) {
-    coords_[i] *= k;
-  }
+template <> point<2> &point<2>::operator*=(int k) {
+  coords_ = _mm_mullo_epi32(coords_, _mm_set1_epi32(k));
   return *this;
 }
 
-template <int Dim> int point<Dim>::norm() const {
-  int sum = 0;
-  for (int i = 0; i < Dim; ++i) {
-    sum += coords_[i] * coords_[i];
-  }
-  return sum;
-}
+// template <> int point<2>::norm() const;
 
-template <int Dim> std::string point<Dim>::to_string() const {
+template <> std::string point<2>::to_string() const {
   std::string s = "(";
-  for (int i = 0; i < Dim - 1; ++i) {
-    s += std::to_string(coords_[i]) + ", ";
-  }
-  s += std::to_string(coords_[Dim - 1]);
-  if constexpr (Dim == 1) {
-    s += ",)";
-  } else {
-    s += ")";
-  }
+  s += std::to_string(extract_epi32(coords_, 0));
+  s += ", ";
+  s += std::to_string(extract_epi32(coords_, 1));
+  s += ")";
   return s;
-}
-
-point_hash::point_hash(int num_steps) : num_steps_(num_steps) {}
-
-template <int Dim> std::size_t point_hash::operator()(const point<Dim> &p) const {
-  std::size_t hash = 0;
-  for (int i = 0; i < Dim; ++i) {
-    hash = num_steps_ + p[i] + 2 * num_steps_ * hash;
-  }
-  return hash;
 }
 
 } // namespace pivot
