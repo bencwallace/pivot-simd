@@ -38,13 +38,12 @@ template <int Dim> std::vector<point<Dim>> walk_node<Dim>::steps() const {
   return result;
 }
 
-#define INTERSECT_INST(z, n, data)                                                                                     \
+#define INTERSECT_INST(n)                                                                                              \
   template bool intersect<n>(const walk_node<n> *l_walk, const walk_node<n> *r_walk, const point<n> &l_anchor,         \
                              const point<n> &r_anchor, const transform<n> &l_symm, const transform<n> &r_symm);
-#define WALK_NODE_INST(z, n, data) template class walk_node<n>;
+#define WALK_NODE_INST(n) template class walk_node<n>;
 
-// cppcheck-suppress syntaxError
-BOOST_PP_REPEAT_FROM_TO(1, DIMS_UB, INTERSECT_INST, ~)
-BOOST_PP_REPEAT_FROM_TO(1, DIMS_UB, WALK_NODE_INST, ~)
+INTERSECT_INST(2)
+WALK_NODE_INST(2)
 
 } // namespace pivot

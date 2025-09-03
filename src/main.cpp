@@ -4,7 +4,7 @@
 
 #include "loop.h"
 
-#define CASE_MACRO(z, n, data)                                                                                         \
+#define CASE_MACRO(n)                                                                                                  \
   case n:                                                                                                              \
     return main_loop<n>(num_steps, iters, fast, seed, require_success, verify, in_path, out_dir);                      \
     break;
@@ -44,8 +44,7 @@ int main(int argc, char **argv) {
   }
 
   switch (dim) {
-    // cppcheck-suppress syntaxError
-    BOOST_PP_REPEAT_FROM_TO(1, DIMS_UB, CASE_MACRO, ~)
+    CASE_MACRO(2)
   default:
     std::cerr << "Invalid dimension: " << dim << '\n';
     return 1;

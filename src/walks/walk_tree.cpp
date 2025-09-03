@@ -4,7 +4,6 @@
 
 #include <boost/preprocessor/repetition/repeat_from_to.hpp>
 
-#include "defines.h"
 #include "utils.h"
 #include "walk_node.h"
 #include "walk_tree.h"
@@ -143,9 +142,8 @@ template <int Dim> void walk_tree<Dim>::todot(const std::string &path) const { r
 
 /* TEMPLATE INSTANTIATION */
 
-#define WALK_TREE_INST(z, n, data) template class walk_tree<n>;
+#define WALK_TREE_INST(n) template class walk_tree<n>;
 
-// cppcheck-suppress syntaxError
-BOOST_PP_REPEAT_FROM_TO(1, DIMS_UB, WALK_TREE_INST, ~)
+WALK_TREE_INST(2)
 
 } // namespace pivot

@@ -7,15 +7,14 @@
 
 namespace pivot {
 
-#define BOX_INST(z, n, data) template struct box<n>;
-#define POINT_INST(z, n, data) template class point<n>;
-#define POINT_HASH_CALL_INST(z, n, data) template std::size_t point_hash::operator()<n>(const point<n> &p) const;
-#define TRANSFORM_INST(z, n, data) template class transform<n>;
+#define BOX_INST(n) template struct box<n>;
+#define POINT_INST(n) template class point<n>;
+#define POINT_HASH_CALL_INST(n) template std::size_t point_hash::operator()<n>(const point<n> &p) const;
+#define TRANSFORM_INST(n) template class transform<n>;
 
-// cppcheck-suppress syntaxError
-BOOST_PP_REPEAT_FROM_TO(1, DIMS_UB, BOX_INST, ~)
-BOOST_PP_REPEAT_FROM_TO(1, DIMS_UB, POINT_INST, ~)
-BOOST_PP_REPEAT_FROM_TO(1, DIMS_UB, POINT_HASH_CALL_INST, ~)
-BOOST_PP_REPEAT_FROM_TO(1, DIMS_UB, TRANSFORM_INST, ~)
+BOX_INST(2)
+POINT_INST(2)
+POINT_HASH_CALL_INST(2)
+TRANSFORM_INST(2)
 
 } // namespace pivot
