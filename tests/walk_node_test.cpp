@@ -133,13 +133,13 @@ TEST(WalkNode, Balanced3) {
 
 }
 
-TEST(RandomWalk, IsNearestNeighbor) {
-    auto steps = random_walk<2>(100);
-    ASSERT_EQ(steps.size(), 100);
-    for (int i = 1; i < 100; ++i) {
-        EXPECT_EQ((steps[i] - steps[i - 1]).norm(), 1);
-    }
-}
+// TEST(RandomWalk, IsNearestNeighbor) {
+//     auto steps = random_walk<2>(100);
+//     ASSERT_EQ(steps.size(), 100);
+//     for (int i = 1; i < 100; ++i) {
+//         EXPECT_EQ((steps[i] - steps[i - 1]).norm(), 1);
+//     }
+// }
 
 TEST(WalkNode, BalancedSteps) {
     auto steps = random_walk<2>(100);

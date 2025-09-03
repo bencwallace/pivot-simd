@@ -4,6 +4,8 @@
 
 namespace pivot {
 
+template <> int point<2>::operator[](int i) const;
+
 interval::interval() : interval(0, 0) {}
 
 interval::interval(int left, int right) : left_(left), right_(right) {}
@@ -16,84 +18,84 @@ bool interval::operator!=(const interval &other) const { return !(*this == other
 
 bool interval::empty() const { return left_ > right_; }
 
-/** @brief Returns the string of the form "[{left_}, {right_}]". */
 std::string interval::to_string() const {
-  // for some reason, gcc-12 gives -Wrestrict warning if I use the string concatenation operator
   std::string result = "[";
   result.append(std::to_string(left_)).append(", ").append(std::to_string(right_)).append("]");
   return result;
 }
 
-template <int Dim> box<Dim> &box<Dim>::operator+=(const point<Dim> &p) {
-  for (int i = 0; i < Dim; ++i) {
-    intervals_[i].left_ += p[i];
-    intervals_[i].right_ += p[i];
-  }
+template <> box<2> &box<2>::operator+=(const point<2> &p) {
+  __m128i offset = _mm_shuffle_epi32(p.data(), _MM_SHUFFLE(1, 0, 1, 0));
+  data_ = _mm_add_epi32(data_, offset);
   return *this;
 }
 
-template <int Dim> box<Dim> &box<Dim>::operator-=(const point<Dim> &b) {
-  for (int i = 0; i < Dim; ++i) {
-    intervals_[i].left_ -= b[i];
-    intervals_[i].right_ -= b[i];
-  }
+template <> box<2> &box<2>::operator-=(const point<2> &b) {
+  __m128i offset = _mm_shuffle_epi32(b.data(), _MM_SHUFFLE(1, 0, 1, 0));
+  data_ = _mm_sub_epi32(data_, offset);
   return *this;
 }
 
-template <int Dim> box<Dim>::box(const std::array<interval, Dim> &intervals) : intervals_(intervals) {}
+template <>
+box<2>::box(const std::array<interval, 2> &intervals)
+    : data_(_mm_setr_epi32(intervals[0].left_, intervals[1].left_, intervals[0].right_, intervals[1].right_)) {}
 
-template <int Dim> box<Dim>::box(std::span<const point<Dim>> points) {
-  std::array<int, Dim> min;
-  std::array<int, Dim> max;
+template <> box<2>::box(std::span<const point<2>> points) {
+  std::array<int, 2> min;
+  std::array<int, 2> max;
   min.fill(std::numeric_limits<int>::max());
   max.fill(std::numeric_limits<int>::min());
   for (const auto &p : points) {
-    for (int i = 0; i < Dim; ++i) {
+    for (int i = 0; i < 2; ++i) { // TODO: vectorize (not urgent)
       min[i] = std::min(min[i], p[i]);
       max[i] = std::max(max[i], p[i]);
     }
   }
   // anchor at (1, 0, ..., 0)
-  intervals_[0] = interval(min[0] - points[0][0] + 1, max[0] - points[0][0] + 1);
-  for (int i = 1; i < Dim; ++i) {
-    intervals_[i] = interval(min[i] - points[0][i], max[i] - points[0][i]);
-  }
+  data_ = insert_epi32(data_, min[0] - points[0][0] + 1, 0);
+  data_ = insert_epi32(data_, max[0] - points[0][0] + 1, 2);
+  data_ = insert_epi32(data_, min[1] - points[0][1], 1);
+  data_ = insert_epi32(data_, max[1] - points[0][1], 3);
 }
 
-template <int Dim> bool box<Dim>::operator==(const box &b) const { return intervals_ == b.intervals_; }
-
-template <int Dim> bool box<Dim>::operator!=(const box &b) const { return intervals_ != b.intervals_; }
-
-template <int Dim> interval box<Dim>::operator[](int i) const { return intervals_[i]; }
-
-template <int Dim> bool box<Dim>::empty() const {
-  return std::any_of(intervals_.begin(), intervals_.end(), [](const interval &i) { return i.empty(); });
+template <> bool box<2>::operator==(const box &b) const {
+  return _mm_movemask_epi8(_mm_cmpeq_epi32(data_, b.data_)) == 0xFFFF;
 }
 
-template <int Dim> box<Dim> box<Dim>::operator|(const box<Dim> &b) const {
-  std::array<interval, Dim> intervals;
-  for (int i = 0; i < Dim; ++i) {
-    intervals[i] = interval(std::min(intervals_[i].left_, b.intervals_[i].left_),
-                            std::max(intervals_[i].right_, b.intervals_[i].right_));
-  }
-  return box(intervals);
+template <> bool box<2>::operator!=(const box &b) const { return !(*this == b); }
+
+template <> interval box<2>::operator[](int i) const {
+  return {int32_t(extract_epi32(data_, i)), int32_t(extract_epi32(data_, i + 2))};
 }
 
-template <int Dim> box<Dim> box<Dim>::operator&(const box<Dim> &b) const {
-  std::array<interval, Dim> intervals;
-  for (int i = 0; i < Dim; ++i) {
-    intervals[i] = interval(std::max(intervals_[i].left_, b.intervals_[i].left_),
-                            std::min(intervals_[i].right_, b.intervals_[i].right_));
-  }
-  return box(intervals);
+template <> bool box<2>::empty() const {
+  __m128i swapped = _mm_shuffle_epi32(data_, _MM_SHUFFLE(1, 0, 3, 2));
+  __m128i cmp = _mm_cmpgt_epi32(data_, swapped);
+  auto result = _mm_cvtsi128_si64(cmp); // Only check the lower 64 bits
+  return result != 0;
 }
 
-template <int Dim> std::string box<Dim>::to_string() const {
+template <> box<2> box<2>::operator|(const box<2> &b) const {
+  // TODO: Look into using `_mm_maskz_{min,max}_epi32`
+  // For example: `__m128i mins = _mm_min_epi32(0b0011, data, b.data)`
+  // For now, benchmarks are crashing when I enable AVX512 in the build
+  __m128i mins = _mm_min_epi32(data_, b.data_);
+  __m128i maxs = _mm_max_epi32(data_, b.data_);
+  return _mm_blend_epi32(mins, maxs, 0b1100);
+}
+
+template <> box<2> box<2>::operator&(const box<2> &b) const {
+  // TODO: See comment under `operator|`
+  __m128i mins = _mm_min_epi32(data_, b.data_);
+  __m128i maxs = _mm_max_epi32(data_, b.data_);
+  return _mm_blend_epi32(mins, maxs, 0b0011);
+}
+
+template <> std::string box<2>::to_string() const {
   std::string s = "";
-  for (int i = 0; i < Dim - 1; ++i) {
-    s += intervals_[i].to_string() + " x ";
-  }
-  s += intervals_[Dim - 1].to_string();
+  s += interval(extract_epi32(data_, 0), extract_epi32(data_, 2)).to_string();
+  s += " x ";
+  s += interval(extract_epi32(data_, 1), extract_epi32(data_, 3)).to_string();
   return s;
 }
 

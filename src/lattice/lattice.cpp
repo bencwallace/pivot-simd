@@ -9,12 +9,10 @@ namespace pivot {
 
 #define BOX_INST(n) template struct box<n>;
 #define POINT_INST(n) template class point<n>;
-#define POINT_HASH_CALL_INST(n) template std::size_t point_hash::operator()<n>(const point<n> &p) const;
 #define TRANSFORM_INST(n) template class transform<n>;
 
 BOX_INST(2)
 POINT_INST(2)
-POINT_HASH_CALL_INST(2)
 TRANSFORM_INST(2)
 
 } // namespace pivot

@@ -4,26 +4,21 @@
 
 namespace pivot {
 
-template <int Dim> transform<Dim>::transform() {
-  for (int i = 0; i < Dim; ++i) {
-    perm_[i] = i;  // trivial permutation
-    signs_[i] = 1; // standard orientations (no flips)
-  }
-}
+template <> transform<2>::transform() : perm_(_mm_setr_epi32(0, 1, 2, 3)), signs_(_mm_set1_epi32(1)) {}
 
-template <int Dim>
-transform<Dim>::transform(const std::array<int, Dim> &perm, const std::array<int, Dim> &signs)
-    : perm_(perm), signs_(signs) {}
+template <>
+transform<2>::transform(const std::array<int, 2> &perm, const std::array<int, 2> &signs)
+    : perm_(_mm_setr_epi32(perm[0], perm[1], 2 + perm[0], 2 + perm[1])),
+      signs_(_mm_setr_epi32(signs[0], signs[1], signs[0], signs[1])) {}
 
-template <int Dim> transform<Dim>::transform(const point<Dim> &p, const point<Dim> &q) : transform() {
-  // The input points should differ by 1 in a single coordinate. Start by finding this coordinate or fail.
-  point<Dim> diff = q - p;
+template <> transform<2>::transform(const point<2> &p, const point<2> &q) : transform() {
+  point<2> diff = q - p;
   int idx = -1;
-  for (int i = 0; i < Dim; ++i) {
+  for (int i = 0; i < 2; ++i) {
     if (std::abs(diff[i]) == 1) {
       if (idx == -1) {
         idx = i;
-      } else { // a differing coordinate has already been found
+      } else {
         throw std::invalid_argument("Points are not adjacent");
       }
     }
@@ -32,88 +27,80 @@ template <int Dim> transform<Dim>::transform(const point<Dim> &p, const point<Di
     throw std::invalid_argument("Points are not adjacent");
   }
 
-  // Construct the transform by modifying the identity transform.
-  perm_[0] = idx;
-  perm_[idx] = 0;
-  signs_[0] = -diff[idx]; // not strictly necessary
-  signs_[idx] = diff[idx];
+  perm_ = insert_epi32(perm_, idx, 0);
+  perm_ = insert_epi32(perm_, 0, idx);
+  signs_ = insert_epi32(signs_, -diff[idx], 0);
+  signs_ = insert_epi32(signs_, diff[idx], idx);
+
+  // TODO: clean this up
+  perm_ = insert_epi32(perm_, idx + 2, 2);
+  perm_ = insert_epi32(perm_, 2, idx + 2);
+  signs_ = insert_epi32(signs_, -diff[idx], 2);
+  signs_ = insert_epi32(signs_, diff[idx], idx + 2);
 }
 
-template <int Dim> transform<Dim> transform<Dim>::rand() {
+template <> transform<2> transform<2>::rand() {
   static std::random_device rd;
   static std::mt19937 gen(rd());
   return rand(gen);
 }
 
-template <int Dim> bool transform<Dim>::operator==(const transform &t) const {
-  return perm_ == t.perm_ && signs_ == t.signs_;
+template <> bool transform<2>::operator==(const transform &t) const {
+  return _mm_movemask_epi8(_mm_cmpeq_epi32(signs_, t.signs_)) == 0xFFFF &&
+         _mm_movemask_epi8(_mm_cmpeq_epi32(perm_, t.perm_)) == 0xFFFF;
 }
 
-template <int Dim> point<Dim> transform<Dim>::operator*(const point<Dim> &p) const {
-  std::array<int, Dim> coords;
-  for (int i = 0; i < Dim; ++i) {
-    coords[perm_[i]] = signs_[perm_[i]] * p[i];
+template <> point<2> transform<2>::operator*(const point<2> &p) const {
+  return _mm_sign_epi32(permutevar_epi32(p.data(), perm_), signs_);
+}
+
+template <> transform<2> transform<2>::operator*(const transform<2> &t) const {
+  __m128i perm = permutevar_epi32(perm_, t.perm_);
+  __m128i signs = _mm_sign_epi32(permutevar_epi32(t.signs_, perm_), signs_);
+  return {perm, signs};
+}
+
+template <> box<2> transform<2>::operator*(const box<2> &b) const {
+  __m128i pairs = _mm_sign_epi32(permutevar_epi32(b.data(), perm_), signs_);
+  return sort_bounds(pairs);
+}
+
+template <> bool transform<2>::is_identity() const {
+  return _mm_movemask_epi8(_mm_cmpeq_epi32(signs_, _mm_set1_epi32(1))) == 0xFFFF &&
+         _mm_movemask_epi8(_mm_cmpeq_epi32(perm_, _mm_setr_epi32(0, 1, 2, 3))) == 0xFFFF;
+}
+
+template <> transform<2> transform<2>::inverse() const {
+  // In general, the inverse is given by signs S' and permutations P' such
+  // that P' = P^-1 and S' = S P. The latter's components can be obtained by
+  // viewing S as a vector and applying P to it (i.e. permuting it). Moreover,
+  // in 2D, P^-1 is the same as P.
+  return transform(perm_, permutevar_epi32(signs_, perm_));
+}
+
+template <> std::array<std::array<int, 2>, 2> transform<2>::to_matrix() const {
+  std::array<std::array<int, 2>, 2> mat = {{{0, 0}, {0, 0}}};
+  for (int i = 0; i < 2; ++i) {
+    int p = extract_epi32(perm_, i);
+    mat[p][i] = extract_epi32(signs_, p);
   }
-  return point<Dim>(coords);
+  return mat;
 }
 
-template <int Dim> transform<Dim> transform<Dim>::operator*(const transform<Dim> &t) const {
-  std::array<int, Dim> perm;
-  std::array<int, Dim> signs;
-  for (int i = 0; i < Dim; ++i) {
-    perm[i] = perm_[t.perm_[i]];
-    signs[perm[i]] = signs_[perm[i]] * t.signs_[t.perm_[i]];
-  }
-  return transform(perm, signs);
-}
-
-template <int Dim> box<Dim> transform<Dim>::operator*(const box<Dim> &b) const {
-  std::array<interval, Dim> intervals;
-  for (int i = 0; i < Dim; ++i) {
-    int x = signs_[perm_[i]] * b.intervals_[i].left_;
-    int y = signs_[perm_[i]] * b.intervals_[i].right_;
-    intervals[perm_[i]] = interval(std::min(x, y), std::max(x, y));
-  }
-  return box<Dim>(intervals);
-}
-
-template <int Dim> bool transform<Dim>::is_identity() const {
-  for (int i = 0; i < Dim; ++i) {
-    if (perm_[i] != i || signs_[i] != 1) {
-      return false;
-    }
-  }
-  return true;
-}
-
-template <int Dim> transform<Dim> transform<Dim>::inverse() const {
-  std::array<int, Dim> perm;
-  std::array<int, Dim> signs;
-  for (int i = 0; i < Dim; ++i) {
-    perm[perm_[i]] = i;
-    signs[i] = signs_[perm_[i]];
-  }
-  return transform(perm, signs);
-}
-
-template <int Dim> std::array<std::array<int, Dim>, Dim> transform<Dim>::to_matrix() const {
-  std::array<std::array<int, Dim>, Dim> matrix = {};
-  for (int i = 0; i < Dim; ++i) {
-    matrix[perm_[i]][i] = signs_[perm_[i]];
-  }
-  return matrix;
-}
-
-template <int Dim> std::string transform<Dim>::to_string() const {
-  auto matrix = to_matrix();
+// TODO: double-check
+template <> std::string transform<2>::to_string() const {
+  auto mat = to_matrix();
   std::string s = "[";
-  for (int i = 0; i < Dim; ++i) {
+  for (int i = 0; i < 2; ++i) {
     s += "[";
-    for (int j = 0; j < Dim - 1; ++j) {
-      s += std::to_string(matrix[i][j]) + ", ";
+    for (int j = 0; j < 2; ++j) {
+      s += std::to_string(mat[i][j]);
+      if (j < 1) {
+        s += ", ";
+      }
     }
-    s += std::to_string(matrix[i][Dim - 1]) + "]";
-    if (i < Dim - 1) {
+    s += "]";
+    if (i < 1) {
       s += ", ";
     }
   }
