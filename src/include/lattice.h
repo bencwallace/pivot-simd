@@ -9,8 +9,6 @@
 
 #include <boost/operators.hpp>
 
-#include "defines.h"
-
 namespace pivot {
 
 template <int Dim> struct box;

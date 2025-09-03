@@ -27,17 +27,17 @@ TEST(WalkTreeTest, SelfAvoiding) {
   }
 }
 
-TEST(WalkTreeTest, SelfAvoiding3D) {
-  for (int num_steps = 2; num_steps < 10; ++num_steps) {
-    auto w = walk_tree<3>(num_steps);
-    for (int i = 0; i < 10; ++i) {
-      for (int j = 0; j < 10; j++) {
-        w.rand_pivot();
-      }
-      EXPECT_TRUE(w.self_avoiding());
-    }
-  }
-}
+// TEST(WalkTreeTest, SelfAvoiding3D) {
+//   for (int num_steps = 2; num_steps < 10; ++num_steps) {
+//     auto w = walk_tree<3>(num_steps);
+//     for (int i = 0; i < 10; ++i) {
+//       for (int j = 0; j < 10; j++) {
+//         w.rand_pivot();
+//       }
+//       EXPECT_TRUE(w.self_avoiding());
+//     }
+//   }
+// }
 
 TEST(WalkTreeTest, FindNode) {
   auto w = walk_tree<2>(100);

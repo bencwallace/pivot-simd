@@ -14,7 +14,6 @@ include(FetchContent)
 # options
 option(SANITIZE "Enable sanitizers" OFF)
 option(GRAPHVIZ_INCLUDE_PATH "Custom path to graphviz headers" OFF)
-set(DIMS_UB 6 CACHE STRING "Upper bound on dimensions handled" FORCE)
 
 # dependencies
 # CLI11
@@ -67,12 +66,6 @@ if(SANITIZE)
       -fsanitize=address,leak,undefined
   )
 endif()
-
-## upper bound on dimension
-target_compile_definitions(pivot
-  PUBLIC
-    DIMS_UB=${DIMS_UB}
-)
 
 # executable
 add_executable(pivot_exec "src/main.cpp")
