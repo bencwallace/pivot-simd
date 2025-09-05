@@ -1,5 +1,4 @@
 pivot
-*.csv
 *.o
 .cache/
 build/
