@@ -10,4 +10,4 @@ The semi-log plot below compares the runtime (in microseconds) per pivot attempt
 
 ![](assets/times.png)
 
-These results below were obtained via the `pivot` [benchmark script](https://github.com/bencwallace/pivot/blob/master/scripts/benchmark.py). The raw data can be found in [bench.csv](./assets/bench.csv). Seed 42 was used. Relevant system specifications are available in [specs](assets/specs).
+These results below were obtained via the `pivot` [benchmark script](https://github.com/bencwallace/pivot/blob/master/scripts/benchmark.py). The raw data can be found in [times2_base.json](./bench/times2_base.json) and [times2_simd.json](bench/times2_simd.json). Seed 42 was used. Relevant system specifications are available in [specs](assets/specs).
