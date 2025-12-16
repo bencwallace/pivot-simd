@@ -1,3 +1,6 @@
+> [!NOTE]
+> This repository has been merged into the main [pivot](https://github.com/bencwallace/pivot) repo.
+
 # pivot-simd
 
 A SIMD-accelerated implementation of [pivot](https://github.com/bencwallace/pivot).
